@@ -165,6 +165,17 @@
   .sheet-actions button:hover{ opacity:.88; }
   .sheet-actions button:disabled{ opacity:.45; cursor:default; }
 
+  .sheet-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .link-btn{ font:inherit; font-size:.78rem; padding:2px 4px; border:none; background:none; color:var(--text-dim); cursor:pointer; }
+  .link-btn:hover{ color:var(--text); }
+  .link-btn.active{ color:var(--danger); }
+  .sticker-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; max-height:224px; overflow-y:auto; }
+  .sticker-cell{ position:relative; aspect-ratio:1; padding:0; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--surface-2); cursor:pointer; }
+  .sticker-cell:hover{ border-color:var(--text-dim); }
+  .sticker-cell img{ display:block; width:100%; height:100%; object-fit:contain; }
+  .sticker-del{ position:absolute; top:3px; right:3px; width:18px; height:18px; padding:0; border:none; border-radius:50%; background:var(--danger); color:#fff; font-size:.72rem; line-height:1; cursor:pointer; display:none; align-items:center; justify-content:center; }
+  .sticker-grid.editing .sticker-del{ display:flex; }
+  .sticker-empty{ grid-column:1/-1; padding:16px 0; text-align:center; font-size:.78rem; color:var(--text-dim); }
   .drop-zone{ padding:26px 16px; border:1.5px dashed var(--border); border-radius:14px; background:var(--bg); text-align:center; font-size:.85rem; line-height:1.7; color:var(--text-dim); cursor:pointer; }
   .drop-zone:hover{ border-color:var(--text-dim); color:var(--text); }
   .drop-zone.dragover{ border-color:var(--online); background:var(--surface-2); color:var(--text); }
@@ -195,6 +206,9 @@
   .msg-row.own.sender-W .bubble{ background:var(--accent-w); color:var(--accent-w-ink); }
   .msg-row.own.sender-A .bubble{ background:var(--accent-a); color:var(--accent-a-ink); }
   .bubble.image{ padding:4px; }
+  .bubble.sticker{ background:none !important; padding:0; }
+  .bubble.sticker img{ display:block; width:118px; max-width:100%; border-radius:10px; cursor:zoom-in; }
+  .bubble.sticker.pending{ width:118px; height:118px; border-radius:10px; background:var(--surface-2) !important; }
   .bubble.image img{ display:block; max-width:100%; border-radius:12px; cursor:zoom-in; }
   .bubble.broken{ background:var(--surface-2) !important; color:var(--text-dim) !important; font-style:italic; }
   .msg-time{ font-size:.68rem; color:var(--text-dim); padding:0 3px; }
@@ -206,9 +220,9 @@
   #send-btn:hover{ opacity:.88; }
   #send-btn:active{ transform:scale(.94); }
   #send-btn:disabled{ opacity:.4; cursor:default; }
-  #img-btn{ flex:none; width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; }
-  #img-btn:hover{ color:var(--text); }
-  #img-btn:focus-visible{ outline:2px solid var(--text-dim); outline-offset:2px; }
+  #sticker-btn{ flex:none; width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  #sticker-btn:hover{ color:var(--text); }
+  #sticker-btn:focus-visible{ outline:2px solid var(--text-dim); outline-offset:2px; }
 
   .conn-banner{ font-size:.78rem; text-align:center; color:var(--danger); padding:7px; background:color-mix(in srgb, var(--danger) 12%, var(--surface)); border-bottom:1px solid var(--border); display:none; }
   .conn-banner.show{ display:block; }
@@ -284,24 +298,28 @@
       <button id="send-btn" type="submit" aria-label="发送">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3.4 20.6l18.2-8.6-18.2-8.6 0 6.9 12.5 1.7-12.5 1.7z" fill="currentColor"/></svg>
       </button>
-      <button id="img-btn" type="button" aria-label="发送图片">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 4h16a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 20 20H4a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 4 4zm.5 14h15l-5-6.5-3.6 4.6-2.4-2.9L4.5 18zM8.6 10.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z" fill="currentColor"/></svg>
+      <button id="sticker-btn" type="button" aria-label="表情包">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2.6a9.4 9.4 0 1 0 0 18.8 9.4 9.4 0 0 0 0-18.8zm0 1.9a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15zM9 9.4a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4zm6 0a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4zm-6.4 4.5h6.8a3.5 3.5 0 0 1-6.8 0z" fill="currentColor"/></svg>
       </button>
     </form>
 
     <input type="file" id="file-input" accept="image/*" hidden>
 
-    <div class="overlay" id="image-modal" hidden>
+    <div class="overlay" id="sticker-modal" hidden>
       <div class="sheet">
-        <h3>发送图片</h3>
-        <div class="drop-zone" id="drop-zone">把图片拖进来，或按 Ctrl+V 粘贴<br>点这里从文件夹里选</div>
+        <div class="sheet-head">
+          <h3>表情包</h3>
+          <button type="button" class="link-btn" id="sticker-edit">管理</button>
+        </div>
+        <div class="sticker-grid" id="sticker-grid"></div>
+        <div class="drop-zone" id="drop-zone">拖新表情进来，或按 Ctrl+V 粘贴<br>点这里从文件夹里选</div>
         <div class="img-preview" id="img-preview" hidden>
-          <img id="img-preview-el" alt="待发送的图片">
+          <img id="img-preview-el" alt="待添加的表情">
           <span class="meta" id="img-meta"></span>
         </div>
         <div class="sheet-actions">
-          <button type="button" id="img-cancel">取消</button>
-          <button type="button" id="img-send" class="primary" disabled>发送</button>
+          <button type="button" id="img-cancel">关闭</button>
+          <button type="button" id="img-send" class="primary" disabled>加进表情包</button>
         </div>
       </div>
     </div>
@@ -359,8 +377,9 @@ const PBKDF2_SALT = 'prts-qiaoqiaohua-salt-v1';
 const MSG_PATH = ['rooms', 'main', 'messages'];
 const PRESENCE_PATH = ['rooms', 'main', 'presence'];
 const CONTROL_PATH = ['rooms', 'main', 'control', 'clearRequest'];
-const IMAGE_MAX_EDGE = 1400;     // longest side after downscaling
-const IMAGE_TARGET_LEN = 520000; // keeps the encrypted doc under Firestore's 1 MiB cap
+const STICKER_PATH = ['rooms', 'main', 'stickers'];
+const STICKER_MAX_EDGE = 360;    // stickers are small by nature
+const STICKER_TARGET_LEN = 260000;
 const HEARTBEAT_MS = 45000;      // one small write per open tab per 45s
 const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
 
@@ -388,9 +407,11 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   const clearBtn = document.getElementById('clear-btn');
   const menuBtn = document.getElementById('menu-btn');
   const menuPop = document.getElementById('menu-pop');
-  const imgBtn = document.getElementById('img-btn');
+  const stickerBtn = document.getElementById('sticker-btn');
   const fileInput = document.getElementById('file-input');
-  const imageModal = document.getElementById('image-modal');
+  const stickerModal = document.getElementById('sticker-modal');
+  const stickerGrid = document.getElementById('sticker-grid');
+  const stickerEditBtn = document.getElementById('sticker-edit');
   const dropZone = document.getElementById('drop-zone');
   const imgPreview = document.getElementById('img-preview');
   const imgPreviewEl = document.getElementById('img-preview-el');
@@ -422,6 +443,11 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   let handledRequestId = null;
   let notifiedRequestId = null;
   let pendingImage = null;
+  let stickerUnsub = null;
+  let stickerEditing = false;
+  const stickerCache = new Map();  // sticker id -> decrypted data URL
+  let stickerOrder = [];           // ids, oldest first
+  let lastDocs = [];               // newest snapshot, kept so stickers can re-render
 
   // ---- reveal/hide password-like fields (supports Chinese IME) ----
   document.querySelectorAll('.reveal-btn').forEach(function(btn){
@@ -578,6 +604,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     connectFirestore();
     startPresence();
     watchControl();
+    watchStickers();
     msgInput.focus();
   }
 
@@ -599,7 +626,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     if (e.key !== 'Escape') return;
     menuPop.hidden = true;
     if (!lightbox.hidden){ lightbox.hidden = true; return; }
-    if (!imageModal.hidden){ closeImageModal(); return; }
+    if (!stickerModal.hidden){ closeStickerModal(); return; }
     if (!clearModal.hidden) closeClearSheet();
   });
 
@@ -720,7 +747,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     });
   }
 
-  // ---- images: downscale, encrypt, store inline with the messages ----
+  // ---- stickers: the picture is stored once, messages only carry its id ----
   function fileToImage(file){
     return new Promise(function(resolve, reject){
       const url = URL.createObjectURL(file);
@@ -731,36 +758,60 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     });
   }
 
-  async function shrinkImage(file){
+  function hasAlpha(g, w, h){
+    try {
+      const data = g.getImageData(0, 0, w, h).data;
+      for (let i = 3; i < data.length; i += 4){
+        if (data[i] < 250) return true;
+      }
+    } catch(e){}
+    return false;
+  }
+
+  async function shrinkSticker(file){
     const img = await fileToImage(file);
-    const scale = Math.min(1, IMAGE_MAX_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
+    const scale = Math.min(1, STICKER_MAX_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
     const w = Math.max(1, Math.round(img.naturalWidth * scale));
     const h = Math.max(1, Math.round(img.naturalHeight * scale));
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     const g = canvas.getContext('2d');
-    g.fillStyle = '#ffffff';        // JPEG carries no alpha, so flatten first
-    g.fillRect(0, 0, w, h);
     g.drawImage(img, 0, 0, w, h);
-    let quality = 0.82;
-    let out = canvas.toDataURL('image/jpeg', quality);
-    while (out.length > IMAGE_TARGET_LEN && quality > 0.34){
-      quality -= 0.12;
-      out = canvas.toDataURL('image/jpeg', quality);
+
+    // transparent stickers stay PNG; photo-ish ones go JPEG, which is far smaller
+    if (hasAlpha(g, w, h)){
+      const png = canvas.toDataURL('image/png');
+      if (png.length <= STICKER_TARGET_LEN) return png;
     }
-    if (out.length > 900000) throw new Error('still too large');
+    const flat = document.createElement('canvas');
+    flat.width = w; flat.height = h;
+    const fg = flat.getContext('2d');
+    fg.fillStyle = '#ffffff';
+    fg.fillRect(0, 0, w, h);
+    fg.drawImage(canvas, 0, 0);
+    let quality = 0.85;
+    let out = flat.toDataURL('image/jpeg', quality);
+    while (out.length > STICKER_TARGET_LEN && quality > 0.34){
+      quality -= 0.12;
+      out = flat.toDataURL('image/jpeg', quality);
+    }
+    if (out.length > 600000) throw new Error('still too large');
     return out;
   }
 
-  function openImageModal(){ imageModal.hidden = false; }
-  function closeImageModal(){
-    imageModal.hidden = true;
+  function openStickerModal(){ stickerModal.hidden = false; }
+  function closeStickerModal(){
+    stickerModal.hidden = true;
     pendingImage = null;
     imgPreview.hidden = true;
     imgPreviewEl.removeAttribute('src');
     imgMeta.textContent = '';
     imgSend.disabled = true;
     fileInput.value = '';
+    stickerEditing = false;
+    stickerGrid.classList.remove('editing');
+    stickerEditBtn.classList.remove('active');
+    stickerEditBtn.textContent = '管理';
   }
 
   async function stageFile(file){
@@ -768,46 +819,146 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     imgMeta.textContent = '处理中…';
     imgPreview.hidden = false;
     try {
-      const dataUrl = await shrinkImage(file);
+      const dataUrl = await shrinkSticker(file);
       pendingImage = dataUrl;
       imgPreviewEl.src = dataUrl;
       imgMeta.textContent = '约 ' + Math.round(dataUrl.length / 1024) + ' KB';
       imgSend.disabled = false;
     } catch(e){
-      console.error('[qiaoqiaohua] image prepare failed:', e);
+      console.error('[qiaoqiaohua] sticker prepare failed:', e);
       imgPreview.hidden = true;
       showToast('这张图处理不了，换一张试试');
     }
   }
 
-  async function sendImage(dataUrl){
+  async function addSticker(dataUrl){
     if (!cryptoKey || !currentUser) return;
     try {
       const enc = await encryptText(dataUrl);
+      await addDoc(collection(fs, ...STICKER_PATH), {
+        iv: enc.iv, ct: enc.ct, addedBy: currentUser.id, ts: Date.now()
+      });
+      showToast('已加进表情包');
+    } catch(e){
+      console.error('[qiaoqiaohua] sticker add failed:', e);
+      showToast('没加上，稍后再试');
+    }
+  }
+
+  async function sendSticker(id){
+    if (!currentUser) return;
+    try {
       await addDoc(collection(fs, ...MSG_PATH), {
-        senderUid: currentUser.uid, kind: 'image', iv: enc.iv, ct: enc.ct, ts: Date.now()
+        senderUid: currentUser.uid, kind: 'sticker', sid: id, ts: Date.now()
       });
     } catch(e){
-      console.error('[qiaoqiaohua] image send failed:', e);
-      showToast('图片没发出去');
+      console.error('[qiaoqiaohua] sticker send failed:', e);
+      showToast('表情没发出去');
       connBanner.classList.add('show');
     }
   }
 
-  imgBtn.addEventListener('click', openImageModal);
-  imgCancel.addEventListener('click', closeImageModal);
+  async function removeSticker(id){
+    try {
+      await deleteDoc(doc(fs, ...STICKER_PATH, id));
+    } catch(e){
+      console.error('[qiaoqiaohua] sticker delete failed:', e);
+      showToast('删不掉，稍后再试');
+    }
+  }
+
+  function renderStickerGrid(){
+    stickerGrid.innerHTML = '';
+    if (!stickerOrder.length){
+      const empty = document.createElement('div');
+      empty.className = 'sticker-empty';
+      empty.textContent = '还没有表情，下面加一个吧';
+      stickerGrid.appendChild(empty);
+      return;
+    }
+    stickerOrder.forEach(function(id){
+      const src = stickerCache.get(id);
+      if (!src) return;
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'sticker-cell';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = '表情';
+      cell.appendChild(img);
+      cell.addEventListener('click', function(){
+        if (stickerEditing) return;
+        closeStickerModal();
+        sendSticker(id);
+      });
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'sticker-del';
+      del.textContent = '×';
+      del.setAttribute('aria-label', '删除这个表情');
+      del.addEventListener('click', function(e){
+        e.stopPropagation();
+        removeSticker(id);
+      });
+      cell.appendChild(del);
+      stickerGrid.appendChild(cell);
+    });
+  }
+
+  function watchStickers(){
+    // newest-first with a cap, so an overflowing pack drops its oldest, not its newest
+    const q = query(collection(fs, ...STICKER_PATH), orderBy('ts', 'desc'), limit(200));
+    stickerUnsub = onSnapshot(q, async function(snap){
+      const ids = [];
+      const pending = [];
+      snap.forEach(function(d){
+        ids.unshift(d.id);
+        if (!stickerCache.has(d.id)) pending.push({ id: d.id, data: d.data() });
+      });
+      for (const item of pending){
+        try {
+          stickerCache.set(item.id, await decryptText(item.data.iv, item.data.ct));
+        } catch(e){
+          stickerCache.set(item.id, null); // wrong passphrase — skip it quietly
+        }
+      }
+      stickerOrder.forEach(function(id){
+        if (ids.indexOf(id) === -1) stickerCache.delete(id);
+      });
+      stickerOrder = ids.filter(function(id){ return stickerCache.get(id); });
+      renderStickerGrid();
+      if (lastDocs.length) renderMessages(lastDocs); // late-arriving art fills the bubbles
+    }, function(err){
+      console.error('[qiaoqiaohua] sticker sync error:', err);
+    });
+  }
+
+  stickerBtn.addEventListener('click', openStickerModal);
+  imgCancel.addEventListener('click', closeStickerModal);
   dropZone.addEventListener('click', function(){ fileInput.click(); });
   fileInput.addEventListener('change', function(){ stageFile(fileInput.files[0]); });
   imgSend.addEventListener('click', function(){
     if (!pendingImage) return;
     const dataUrl = pendingImage;
-    closeImageModal();
-    sendImage(dataUrl);
+    pendingImage = null;
+    imgPreview.hidden = true;
+    imgPreviewEl.removeAttribute('src');
+    imgMeta.textContent = '';
+    imgSend.disabled = true;
+    fileInput.value = '';
+    addSticker(dataUrl);
+  });
+  stickerEditBtn.addEventListener('click', function(){
+    stickerEditing = !stickerEditing;
+    stickerGrid.classList.toggle('editing', stickerEditing);
+    stickerEditBtn.classList.toggle('active', stickerEditing);
+    stickerEditBtn.textContent = stickerEditing ? '完成' : '管理';
   });
 
   ['dragenter', 'dragover'].forEach(function(ev){
     dropZone.addEventListener(ev, function(e){ e.preventDefault(); dropZone.classList.add('dragover'); });
-    imageModal.addEventListener(ev, function(e){ e.preventDefault(); });
+    stickerModal.addEventListener(ev, function(e){ e.preventDefault(); });
   });
   ['dragleave', 'drop'].forEach(function(ev){
     dropZone.addEventListener(ev, function(e){ e.preventDefault(); dropZone.classList.remove('dragover'); });
@@ -816,7 +967,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
     stageFile(f);
   });
-  imageModal.addEventListener('drop', function(e){ e.preventDefault(); });
+  stickerModal.addEventListener('drop', function(e){ e.preventDefault(); });
 
   document.addEventListener('paste', function(e){
     if (chatView.hidden) return;
@@ -825,7 +976,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     for (let i = 0; i < items.length; i++){
       if (items[i].type && items[i].type.indexOf('image/') === 0){
         e.preventDefault();
-        openImageModal();
+        openStickerModal();
         stageFile(items[i].getAsFile());
         return;
       }
@@ -904,8 +1055,12 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     if (statusTicker){ clearInterval(statusTicker); statusTicker = null; }
     if (presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
     if (controlUnsub){ controlUnsub(); controlUnsub = null; }
+    if (stickerUnsub){ stickerUnsub(); stickerUnsub = null; }
+    stickerCache.clear();
+    stickerOrder = [];
+    lastDocs = [];
     closeClearSheet();
-    closeImageModal();
+    closeStickerModal();
     lightbox.hidden = true;
     handledRequestId = null;
     notifiedRequestId = null;
@@ -973,6 +1128,9 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     const atBottom = messagesEl.scrollTop + messagesEl.clientHeight >= messagesEl.scrollHeight - 40;
     const resolved = await Promise.all(rawDocs.map(async function(m){
       const senderId = idFromUid(m.senderUid) || '?';
+      if (m.kind === 'sticker'){
+        return { senderId: senderId, kind: 'sticker', sid: m.sid, ts: m.ts, broken: false };
+      }
       let text, broken = false;
       try { text = await decryptText(m.iv, m.ct); }
       catch(e){ text = '🔒 无法解密（加密口令和对方不一致）'; broken = true; }
@@ -1004,8 +1162,23 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
       const col = document.createElement('div');
       col.className = 'msg-col';
       const bubble = document.createElement('div');
-      bubble.className = 'bubble' + (m.broken ? ' broken' : '') + (m.kind === 'image' ? ' image' : '');
-      if (m.kind === 'image'){
+      bubble.className = 'bubble' + (m.broken ? ' broken' : '') +
+        (m.kind === 'image' ? ' image' : '') + (m.kind === 'sticker' ? ' sticker' : '');
+      if (m.kind === 'sticker'){
+        const src = stickerCache.get(m.sid);
+        if (src){
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = '表情';
+          img.addEventListener('load', function(){
+            if (atBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
+          });
+          img.addEventListener('click', function(){ openLightbox(src); });
+          bubble.appendChild(img);
+        } else {
+          bubble.classList.add('pending'); // sticker was deleted, or not decrypted yet
+        }
+      } else if (m.kind === 'image'){
         const img = document.createElement('img');
         img.src = m.text;
         img.alt = '图片';
@@ -1047,6 +1220,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
       const docs = [];
       snap.forEach(function(d){ docs.push(d.data()); });
       docs.reverse();
+      lastDocs = docs;
       noteIncoming(docs);
       renderMessages(docs);
       pruneIfNeeded(docs.length);
