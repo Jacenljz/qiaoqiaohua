@@ -320,6 +320,9 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   let statusTicker = null;
   let peerLastSeen = 0;
   let peerKnown = false;
+  let seenInitial = false;
+  let lastMsgTs = 0;
+  let hasUnread = false;
 
   // ---- reveal/hide password-like fields (supports Chinese IME) ----
   document.querySelectorAll('.reveal-btn').forEach(function(btn){
@@ -478,6 +481,43 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     msgInput.focus();
   }
 
+  // ---- unread badge: a red dot on the tab icon while you are looking elsewhere ----
+  const faviconLink = document.querySelector('link[rel="icon"]');
+  const MOON_SVG = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌙</text>";
+  const ICON_PLAIN = 'data:image/svg+xml,' + encodeURIComponent(MOON_SVG + '</svg>');
+  const ICON_UNREAD = 'data:image/svg+xml,' + encodeURIComponent(
+    MOON_SVG + "<circle cx='18' cy='18' r='17' fill='#e8483f' stroke='#ffffff' stroke-width='7'/></svg>"
+  );
+
+  function setUnreadBadge(on){
+    if (faviconLink) faviconLink.href = on ? ICON_UNREAD : ICON_PLAIN;
+  }
+
+  function clearUnread(){
+    if (hasUnread){ hasUnread = false; setUnreadBadge(false); }
+  }
+
+  // hidden tab, or a focused tab in a window sitting behind another app
+  function lookingAway(){
+    return document.hidden || !document.hasFocus();
+  }
+
+  function noteIncoming(docs){
+    const newest = docs.length ? docs[docs.length - 1].ts : 0;
+    if (!seenInitial){ seenInitial = true; lastMsgTs = newest; return; }
+    if (newest <= lastMsgTs) return;
+    const peerUid = peerAccount().uid;
+    const fromPeer = docs.some(function(m){ return m.ts > lastMsgTs && m.senderUid === peerUid; });
+    lastMsgTs = newest;
+    if (fromPeer && lookingAway()){
+      hasUnread = true;
+      setUnreadBadge(true);
+    }
+  }
+
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) clearUnread(); });
+  window.addEventListener('focus', clearUnread);
+
   // ---- presence: each person heartbeats one doc, the other reads it live ----
   function peerAccount(){
     return currentUser.id === 'W' ? ACCOUNTS.A : ACCOUNTS.W;
@@ -514,6 +554,9 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     if (presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
     peerLastSeen = 0;
     peerKnown = false;
+    seenInitial = false;
+    lastMsgTs = 0;
+    clearUnread();
     if (currentUser){
       try {
         await setDoc(doc(fs, ...PRESENCE_PATH, currentUser.uid), { lastSeen: 0, who: currentUser.id });
@@ -636,6 +679,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
       const docs = [];
       snap.forEach(function(d){ docs.push(d.data()); });
       docs.reverse();
+      noteIncoming(docs);
       renderMessages(docs);
       pruneIfNeeded(docs.length);
     }, function(err){
