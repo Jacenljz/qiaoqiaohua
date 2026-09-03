@@ -142,6 +142,38 @@
     border:1px solid var(--border); padding:6px 10px; border-radius:999px; cursor:pointer; white-space:nowrap;
   }
   .bar-actions button:hover{ color:var(--text); }
+  .menu-wrap{ position:relative; }
+  .menu-pop{
+    position:absolute; right:0; top:calc(100% + 6px); z-index:20; min-width:130px;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 16px 34px -18px rgba(0,0,0,.5); overflow:hidden;
+  }
+  .menu-pop button{
+    display:block; width:100%; text-align:left; border:none; border-radius:0;
+    background:transparent; padding:10px 14px; font-size:.8rem; color:var(--text);
+  }
+  .menu-pop button:hover{ background:var(--surface-2); color:var(--text); }
+
+  .overlay{ position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(10,11,18,.55); }
+  .sheet{ width:100%; max-width:360px; display:flex; flex-direction:column; gap:14px; padding:20px; background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:0 30px 60px -30px rgba(0,0,0,.6); }
+  .sheet h3{ margin:0; font-family:'ZCOOL XiaoWei','Noto Sans SC',serif; font-weight:400; font-size:1.15rem; }
+  .sheet p{ margin:0; font-size:.85rem; line-height:1.55; color:var(--text-dim); }
+  .sheet-actions{ display:flex; gap:10px; }
+  .sheet-actions button{ flex:1; font:inherit; font-size:.9rem; padding:11px; border-radius:11px; cursor:pointer; border:1px solid var(--border); background:var(--surface-2); color:var(--text); }
+  .sheet-actions button.primary{ background:var(--text); color:var(--surface); border-color:transparent; }
+  .sheet-actions button.danger{ background:var(--danger); color:#fff; border-color:transparent; }
+  .sheet-actions button:hover{ opacity:.88; }
+  .sheet-actions button:disabled{ opacity:.45; cursor:default; }
+
+  .drop-zone{ padding:26px 16px; border:1.5px dashed var(--border); border-radius:14px; background:var(--bg); text-align:center; font-size:.85rem; line-height:1.7; color:var(--text-dim); cursor:pointer; }
+  .drop-zone:hover{ border-color:var(--text-dim); color:var(--text); }
+  .drop-zone.dragover{ border-color:var(--online); background:var(--surface-2); color:var(--text); }
+  .img-preview{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .img-preview img{ max-width:100%; max-height:240px; border-radius:12px; }
+  .img-preview .meta{ font-size:.72rem; color:var(--text-dim); }
+  #lightbox img{ max-width:100%; max-height:100%; border-radius:10px; }
+
+  .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:60; max-width:80%; padding:10px 16px; border-radius:999px; font-size:.82rem; text-align:center; background:var(--text); color:var(--surface); box-shadow:0 18px 34px -20px rgba(0,0,0,.6); }
 
   #messages{ flex:1; overflow-y:auto; padding:18px 16px 10px; display:flex; flex-direction:column; gap:10px; background:var(--bg); }
   .day-divider{ align-self:center; font-size:.72rem; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); padding:3px 12px; border-radius:999px; margin:6px 0; }
@@ -162,6 +194,8 @@
   .msg-row.own .bubble{ border-bottom-right-radius:5px; }
   .msg-row.own.sender-W .bubble{ background:var(--accent-w); color:var(--accent-w-ink); }
   .msg-row.own.sender-A .bubble{ background:var(--accent-a); color:var(--accent-a-ink); }
+  .bubble.image{ padding:4px; }
+  .bubble.image img{ display:block; max-width:100%; border-radius:12px; cursor:zoom-in; }
   .bubble.broken{ background:var(--surface-2) !important; color:var(--text-dim) !important; font-style:italic; }
   .msg-time{ font-size:.68rem; color:var(--text-dim); padding:0 3px; }
 
@@ -172,6 +206,9 @@
   #send-btn:hover{ opacity:.88; }
   #send-btn:active{ transform:scale(.94); }
   #send-btn:disabled{ opacity:.4; cursor:default; }
+  #img-btn{ flex:none; width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  #img-btn:hover{ color:var(--text); }
+  #img-btn:focus-visible{ outline:2px solid var(--text-dim); outline-offset:2px; }
 
   .conn-banner{ font-size:.78rem; text-align:center; color:var(--danger); padding:7px; background:color-mix(in srgb, var(--danger) 12%, var(--surface)); border-bottom:1px solid var(--border); display:none; }
   .conn-banner.show{ display:block; }
@@ -229,8 +266,14 @@
         </span>
       </div>
       <div class="bar-actions">
-        <button id="forget-btn" type="button">更换口令</button>
-        <button id="logout-btn" type="button">切换账号</button>
+        <button id="clear-btn" type="button">清空记录</button>
+        <div class="menu-wrap">
+          <button id="menu-btn" type="button" aria-label="更多">•••</button>
+          <div class="menu-pop" id="menu-pop" hidden>
+            <button id="forget-btn" type="button">更换口令</button>
+            <button id="logout-btn" type="button">切换账号</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -241,7 +284,37 @@
       <button id="send-btn" type="submit" aria-label="发送">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3.4 20.6l18.2-8.6-18.2-8.6 0 6.9 12.5 1.7-12.5 1.7z" fill="currentColor"/></svg>
       </button>
+      <button id="img-btn" type="button" aria-label="发送图片">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 4h16a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 20 20H4a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 4 4zm.5 14h15l-5-6.5-3.6 4.6-2.4-2.9L4.5 18zM8.6 10.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z" fill="currentColor"/></svg>
+      </button>
     </form>
+
+    <input type="file" id="file-input" accept="image/*" hidden>
+
+    <div class="overlay" id="image-modal" hidden>
+      <div class="sheet">
+        <h3>发送图片</h3>
+        <div class="drop-zone" id="drop-zone">把图片拖进来，或按 Ctrl+V 粘贴<br>点这里从文件夹里选</div>
+        <div class="img-preview" id="img-preview" hidden>
+          <img id="img-preview-el" alt="待发送的图片">
+          <span class="meta" id="img-meta"></span>
+        </div>
+        <div class="sheet-actions">
+          <button type="button" id="img-cancel">取消</button>
+          <button type="button" id="img-send" class="primary" disabled>发送</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="clear-modal" hidden>
+      <div class="sheet">
+        <h3 id="clear-title"></h3>
+        <p id="clear-desc"></p>
+        <div class="sheet-actions" id="clear-actions"></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="lightbox" hidden><img id="lightbox-img" alt="图片"></div>
   </section>
 
 </div>
@@ -253,7 +326,7 @@ import {
   signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  initializeFirestore, collection, addDoc, doc, setDoc, deleteDoc,
+  initializeFirestore, collection, addDoc, doc, setDoc, deleteDoc, writeBatch,
   query, orderBy, limit, onSnapshot, getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
@@ -285,6 +358,9 @@ const PASSPHRASE_KEY = 'prts_passphrase_v1';
 const PBKDF2_SALT = 'prts-qiaoqiaohua-salt-v1';
 const MSG_PATH = ['rooms', 'main', 'messages'];
 const PRESENCE_PATH = ['rooms', 'main', 'presence'];
+const CONTROL_PATH = ['rooms', 'main', 'control', 'clearRequest'];
+const IMAGE_MAX_EDGE = 1400;     // longest side after downscaling
+const IMAGE_TARGET_LEN = 520000; // keeps the encrypted doc under Firestore's 1 MiB cap
 const HEARTBEAT_MS = 45000;      // one small write per open tab per 45s
 const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
 
@@ -309,6 +385,24 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   const msgInput = document.getElementById('msg-input');
   const sendBtn = document.getElementById('send-btn');
   const connBanner = document.getElementById('conn-banner');
+  const clearBtn = document.getElementById('clear-btn');
+  const menuBtn = document.getElementById('menu-btn');
+  const menuPop = document.getElementById('menu-pop');
+  const imgBtn = document.getElementById('img-btn');
+  const fileInput = document.getElementById('file-input');
+  const imageModal = document.getElementById('image-modal');
+  const dropZone = document.getElementById('drop-zone');
+  const imgPreview = document.getElementById('img-preview');
+  const imgPreviewEl = document.getElementById('img-preview-el');
+  const imgMeta = document.getElementById('img-meta');
+  const imgCancel = document.getElementById('img-cancel');
+  const imgSend = document.getElementById('img-send');
+  const clearModal = document.getElementById('clear-modal');
+  const clearTitle = document.getElementById('clear-title');
+  const clearDesc = document.getElementById('clear-desc');
+  const clearActions = document.getElementById('clear-actions');
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
 
   let selectedId = 'W';
   let currentUser = null;
@@ -323,6 +417,11 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   let seenInitial = false;
   let lastMsgTs = 0;
   let hasUnread = false;
+  let controlUnsub = null;
+  let controlPrimed = false;
+  let handledRequestId = null;
+  let notifiedRequestId = null;
+  let pendingImage = null;
 
   // ---- reveal/hide password-like fields (supports Chinese IME) ----
   document.querySelectorAll('.reveal-btn').forEach(function(btn){
@@ -478,8 +577,260 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     messagesEl.innerHTML = '';
     connectFirestore();
     startPresence();
+    watchControl();
     msgInput.focus();
   }
+
+  // ---- shared bits for the sheets ----
+  function showToast(text, ms){
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, ms || 3400);
+  }
+
+  menuBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    menuPop.hidden = !menuPop.hidden;
+  });
+  document.addEventListener('click', function(){ menuPop.hidden = true; });
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape') return;
+    menuPop.hidden = true;
+    if (!lightbox.hidden){ lightbox.hidden = true; return; }
+    if (!imageModal.hidden){ closeImageModal(); return; }
+    if (!clearModal.hidden) closeClearSheet();
+  });
+
+  function openLightbox(src){
+    lightboxImg.src = src;
+    lightbox.hidden = false;
+  }
+  lightbox.addEventListener('click', function(){ lightbox.hidden = true; });
+
+  // ---- clearing history: one side asks, the other side decides ----
+  function controlRef(){ return doc(fs, ...CONTROL_PATH); }
+
+  function openClearSheet(cfg){
+    clearTitle.textContent = cfg.title;
+    clearDesc.textContent = cfg.desc;
+    clearActions.innerHTML = '';
+    cfg.actions.forEach(function(a){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = a.label;
+      if (a.cls) b.className = a.cls;
+      b.addEventListener('click', a.onClick);
+      clearActions.appendChild(b);
+    });
+    clearModal.hidden = false;
+  }
+  function closeClearSheet(){ clearModal.hidden = true; }
+
+  clearBtn.addEventListener('click', function(){
+    menuPop.hidden = true;
+    openClearSheet({
+      title: '清空聊天记录',
+      desc: '会给 ' + peerAccount().name + ' 发一条确认请求。对方同意后，两边的全部历史消息都会被删掉，删了找不回来。',
+      actions: [
+        { label: '取消', onClick: closeClearSheet },
+        { label: '发送请求', cls: 'primary', onClick: sendClearRequest }
+      ]
+    });
+  });
+
+  async function sendClearRequest(){
+    closeClearSheet();
+    const id = 'req-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    notifiedRequestId = null;
+    try {
+      await setDoc(controlRef(), { id: id, from: currentUser.id, status: 'pending', ts: Date.now() });
+      showToast('已发送，等 ' + peerAccount().name + ' 确认');
+    } catch(e){
+      console.error('[qiaoqiaohua] clear request failed:', e);
+      showToast('请求发不出去，稍后再试');
+    }
+  }
+
+  function promptClear(req){
+    openClearSheet({
+      title: peerAccount().name + ' 想清空聊天记录',
+      desc: '同意后，两边的全部历史消息都会被删掉，删了找不回来。',
+      actions: [
+        { label: '拒绝', onClick: function(){ resolveClear(req, 'declined'); } },
+        { label: '同意清空', cls: 'danger', onClick: function(){ resolveClear(req, 'accepted'); } }
+      ]
+    });
+  }
+
+  async function resolveClear(req, status){
+    closeClearSheet();
+    try {
+      if (status === 'accepted') await wipeAllMessages();
+      await setDoc(controlRef(), {
+        id: req.id, from: req.from, status: status, ts: req.ts, resolvedTs: Date.now()
+      });
+      showToast(status === 'accepted' ? '聊天记录已清空' : '已拒绝');
+    } catch(e){
+      console.error('[qiaoqiaohua] clear resolve failed:', e);
+      showToast('操作失败，稍后再试');
+    }
+  }
+
+  async function wipeAllMessages(){
+    for (;;){
+      const snap = await getDocs(query(collection(fs, ...MSG_PATH), limit(400)));
+      if (snap.empty) break;
+      const batch = writeBatch(fs);
+      snap.forEach(function(d){ batch.delete(doc(fs, ...MSG_PATH, d.id)); });
+      await batch.commit();
+      if (snap.size < 400) break;
+    }
+  }
+
+  function watchControl(){
+    controlPrimed = false;
+    controlUnsub = onSnapshot(controlRef(), function(snap){
+      const d = snap.data();
+      const primed = controlPrimed;
+      controlPrimed = true;
+      if (!d || !d.id) return;
+      const mine = d.from === currentUser.id;
+      const fresh = (Date.now() - (d.ts || 0)) < 24 * 3600 * 1000;
+
+      if (d.status === 'pending'){
+        if (!mine && fresh && d.id !== handledRequestId){
+          handledRequestId = d.id;
+          promptClear(d);
+        }
+        return;
+      }
+      // Resolved: report the outcome to whoever asked, but don't replay an old
+      // one just because a fresh page load happened to read the doc.
+      if (!primed){ notifiedRequestId = d.id; return; }
+      if (mine && d.id !== notifiedRequestId){
+        notifiedRequestId = d.id;
+        showToast(d.status === 'accepted'
+          ? peerAccount().name + ' 同意了，聊天记录已清空'
+          : peerAccount().name + ' 拒绝了清空请求');
+      }
+    }, function(err){
+      console.error('[qiaoqiaohua] control error:', err);
+    });
+  }
+
+  // ---- images: downscale, encrypt, store inline with the messages ----
+  function fileToImage(file){
+    return new Promise(function(resolve, reject){
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function(){ URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('decode failed')); };
+      img.src = url;
+    });
+  }
+
+  async function shrinkImage(file){
+    const img = await fileToImage(file);
+    const scale = Math.min(1, IMAGE_MAX_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const g = canvas.getContext('2d');
+    g.fillStyle = '#ffffff';        // JPEG carries no alpha, so flatten first
+    g.fillRect(0, 0, w, h);
+    g.drawImage(img, 0, 0, w, h);
+    let quality = 0.82;
+    let out = canvas.toDataURL('image/jpeg', quality);
+    while (out.length > IMAGE_TARGET_LEN && quality > 0.34){
+      quality -= 0.12;
+      out = canvas.toDataURL('image/jpeg', quality);
+    }
+    if (out.length > 900000) throw new Error('still too large');
+    return out;
+  }
+
+  function openImageModal(){ imageModal.hidden = false; }
+  function closeImageModal(){
+    imageModal.hidden = true;
+    pendingImage = null;
+    imgPreview.hidden = true;
+    imgPreviewEl.removeAttribute('src');
+    imgMeta.textContent = '';
+    imgSend.disabled = true;
+    fileInput.value = '';
+  }
+
+  async function stageFile(file){
+    if (!file || file.type.indexOf('image/') !== 0){ showToast('这不是图片文件'); return; }
+    imgMeta.textContent = '处理中…';
+    imgPreview.hidden = false;
+    try {
+      const dataUrl = await shrinkImage(file);
+      pendingImage = dataUrl;
+      imgPreviewEl.src = dataUrl;
+      imgMeta.textContent = '约 ' + Math.round(dataUrl.length / 1024) + ' KB';
+      imgSend.disabled = false;
+    } catch(e){
+      console.error('[qiaoqiaohua] image prepare failed:', e);
+      imgPreview.hidden = true;
+      showToast('这张图处理不了，换一张试试');
+    }
+  }
+
+  async function sendImage(dataUrl){
+    if (!cryptoKey || !currentUser) return;
+    try {
+      const enc = await encryptText(dataUrl);
+      await addDoc(collection(fs, ...MSG_PATH), {
+        senderUid: currentUser.uid, kind: 'image', iv: enc.iv, ct: enc.ct, ts: Date.now()
+      });
+    } catch(e){
+      console.error('[qiaoqiaohua] image send failed:', e);
+      showToast('图片没发出去');
+      connBanner.classList.add('show');
+    }
+  }
+
+  imgBtn.addEventListener('click', openImageModal);
+  imgCancel.addEventListener('click', closeImageModal);
+  dropZone.addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(){ stageFile(fileInput.files[0]); });
+  imgSend.addEventListener('click', function(){
+    if (!pendingImage) return;
+    const dataUrl = pendingImage;
+    closeImageModal();
+    sendImage(dataUrl);
+  });
+
+  ['dragenter', 'dragover'].forEach(function(ev){
+    dropZone.addEventListener(ev, function(e){ e.preventDefault(); dropZone.classList.add('dragover'); });
+    imageModal.addEventListener(ev, function(e){ e.preventDefault(); });
+  });
+  ['dragleave', 'drop'].forEach(function(ev){
+    dropZone.addEventListener(ev, function(e){ e.preventDefault(); dropZone.classList.remove('dragover'); });
+  });
+  dropZone.addEventListener('drop', function(e){
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    stageFile(f);
+  });
+  imageModal.addEventListener('drop', function(e){ e.preventDefault(); });
+
+  document.addEventListener('paste', function(e){
+    if (chatView.hidden) return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++){
+      if (items[i].type && items[i].type.indexOf('image/') === 0){
+        e.preventDefault();
+        openImageModal();
+        stageFile(items[i].getAsFile());
+        return;
+      }
+    }
+  });
 
   // ---- unread badge: a red dot on the tab icon while you are looking elsewhere ----
   const faviconLink = document.querySelector('link[rel="icon"]');
@@ -552,6 +903,12 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     if (heartbeatTimer){ clearInterval(heartbeatTimer); heartbeatTimer = null; }
     if (statusTicker){ clearInterval(statusTicker); statusTicker = null; }
     if (presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
+    if (controlUnsub){ controlUnsub(); controlUnsub = null; }
+    closeClearSheet();
+    closeImageModal();
+    lightbox.hidden = true;
+    handledRequestId = null;
+    notifiedRequestId = null;
     peerLastSeen = 0;
     peerKnown = false;
     seenInitial = false;
@@ -619,7 +976,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
       let text, broken = false;
       try { text = await decryptText(m.iv, m.ct); }
       catch(e){ text = '🔒 无法解密（加密口令和对方不一致）'; broken = true; }
-      return { senderId, text, broken, ts: m.ts };
+      return { senderId, text, broken, ts: m.ts, kind: (!broken && m.kind === 'image') ? 'image' : 'text' };
     }));
 
     messagesEl.innerHTML = '';
@@ -647,8 +1004,19 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
       const col = document.createElement('div');
       col.className = 'msg-col';
       const bubble = document.createElement('div');
-      bubble.className = 'bubble' + (m.broken ? ' broken' : '');
-      bubble.textContent = m.text;
+      bubble.className = 'bubble' + (m.broken ? ' broken' : '') + (m.kind === 'image' ? ' image' : '');
+      if (m.kind === 'image'){
+        const img = document.createElement('img');
+        img.src = m.text;
+        img.alt = '图片';
+        img.addEventListener('load', function(){
+          if (atBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
+        });
+        img.addEventListener('click', function(){ openLightbox(m.text); });
+        bubble.appendChild(img);
+      } else {
+        bubble.textContent = m.text;
+      }
       const time = document.createElement('div');
       time.className = 'msg-time mono';
       time.textContent = timeLabel(m.ts);
