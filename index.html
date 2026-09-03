@@ -142,17 +142,12 @@
     border:1px solid var(--border); padding:6px 10px; border-radius:999px; cursor:pointer; white-space:nowrap;
   }
   .bar-actions button:hover{ color:var(--text); }
-  .menu-wrap{ position:relative; }
-  .menu-pop{
-    position:absolute; right:0; top:calc(100% + 6px); z-index:20; min-width:130px;
-    background:var(--surface); border:1px solid var(--border); border-radius:12px;
-    box-shadow:0 16px 34px -18px rgba(0,0,0,.5); overflow:hidden;
+  .bar-actions .round-btn{
+    width:27px; height:27px; padding:0; border-radius:50%;
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:.66rem; letter-spacing:-.04em;
+    display:flex; align-items:center; justify-content:center;
   }
-  .menu-pop button{
-    display:block; width:100%; text-align:left; border:none; border-radius:0;
-    background:transparent; padding:10px 14px; font-size:.8rem; color:var(--text);
-  }
-  .menu-pop button:hover{ background:var(--surface-2); color:var(--text); }
+  #forget-btn{ align-self:center; }
 
   .overlay{ position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(10,11,18,.55); }
   .sheet{ width:100%; max-width:360px; display:flex; flex-direction:column; gap:14px; padding:20px; background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:0 30px 60px -30px rgba(0,0,0,.6); }
@@ -165,7 +160,7 @@
   .sheet-actions button:hover{ opacity:.88; }
   .sheet-actions button:disabled{ opacity:.45; cursor:default; }
 
-  .sheet-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .sticker-manage{ display:flex; flex-direction:column; gap:14px; }
   .link-btn{ font:inherit; font-size:.78rem; padding:2px 4px; border:none; background:none; color:var(--text-dim); cursor:pointer; }
   .link-btn:hover{ color:var(--text); }
   .link-btn.active{ color:var(--danger); }
@@ -264,6 +259,7 @@
     </div>
 
     <button id="login-submit" type="button">进门</button>
+    <button type="button" class="link-btn" id="forget-btn" hidden>更换加密口令</button>
     <p class="login-msg" id="login-msg"></p>
   </section>
 
@@ -280,14 +276,9 @@
         </span>
       </div>
       <div class="bar-actions">
+        <button id="dev-btn" class="round-btn" type="button" aria-label="表情包管理" title="表情包管理" hidden>&lt;/&gt;</button>
         <button id="clear-btn" type="button">清空记录</button>
-        <div class="menu-wrap">
-          <button id="menu-btn" type="button" aria-label="更多">•••</button>
-          <div class="menu-pop" id="menu-pop" hidden>
-            <button id="forget-btn" type="button">更换口令</button>
-            <button id="logout-btn" type="button">切换账号</button>
-          </div>
-        </div>
+        <button id="logout-btn" type="button">切换账号</button>
       </div>
     </header>
 
@@ -307,19 +298,18 @@
 
     <div class="overlay" id="sticker-modal" hidden>
       <div class="sheet">
-        <div class="sheet-head">
-          <h3>表情包</h3>
-          <button type="button" class="link-btn" id="sticker-edit">管理</button>
-        </div>
+        <h3 id="sticker-title">表情包</h3>
         <div class="sticker-grid" id="sticker-grid"></div>
-        <div class="drop-zone" id="drop-zone">拖新表情进来，或按 Ctrl+V 粘贴<br>点这里从文件夹里选</div>
-        <div class="img-preview" id="img-preview" hidden>
-          <img id="img-preview-el" alt="待添加的表情">
-          <span class="meta" id="img-meta"></span>
+        <div class="sticker-manage" id="sticker-manage" hidden>
+          <div class="drop-zone" id="drop-zone">拖新表情进来，或按 Ctrl+V 粘贴<br>点这里从文件夹里选</div>
+          <div class="img-preview" id="img-preview" hidden>
+            <img id="img-preview-el" alt="待添加的表情">
+            <span class="meta" id="img-meta"></span>
+          </div>
         </div>
         <div class="sheet-actions">
           <button type="button" id="img-cancel">关闭</button>
-          <button type="button" id="img-send" class="primary" disabled>加进表情包</button>
+          <button type="button" id="img-send" class="primary" hidden disabled>加进表情包</button>
         </div>
       </div>
     </div>
@@ -405,13 +395,13 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   const sendBtn = document.getElementById('send-btn');
   const connBanner = document.getElementById('conn-banner');
   const clearBtn = document.getElementById('clear-btn');
-  const menuBtn = document.getElementById('menu-btn');
-  const menuPop = document.getElementById('menu-pop');
+  const devBtn = document.getElementById('dev-btn');
   const stickerBtn = document.getElementById('sticker-btn');
   const fileInput = document.getElementById('file-input');
   const stickerModal = document.getElementById('sticker-modal');
   const stickerGrid = document.getElementById('sticker-grid');
-  const stickerEditBtn = document.getElementById('sticker-edit');
+  const stickerManage = document.getElementById('sticker-manage');
+  const stickerTitle = document.getElementById('sticker-title');
   const dropZone = document.getElementById('drop-zone');
   const imgPreview = document.getElementById('img-preview');
   const imgPreviewEl = document.getElementById('img-preview-el');
@@ -444,7 +434,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   let notifiedRequestId = null;
   let pendingImage = null;
   let stickerUnsub = null;
-  let stickerEditing = false;
+  let stickerMode = 'send';       // 'send' picks one, 'manage' adds/removes
   const stickerCache = new Map();  // sticker id -> decrypted data URL
   let stickerOrder = [];           // ids, oldest first
   let lastDocs = [];               // newest snapshot, kept so stickers can re-render
@@ -484,7 +474,9 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   }
 
   function refreshPassphraseFieldVisibility(){
-    ppField.hidden = hasCachedPassphrase();
+    const cached = hasCachedPassphrase();
+    ppField.hidden = cached;
+    forgetBtn.hidden = !cached;
   }
   refreshPassphraseFieldVisibility();
 
@@ -600,6 +592,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     loginView.hidden = true;
     chatView.hidden = false;
     whoami.textContent = '你是 ' + currentUser.name;
+    devBtn.hidden = currentUser.id !== 'A';
     messagesEl.innerHTML = '';
     connectFirestore();
     startPresence();
@@ -617,14 +610,8 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     setTimeout(function(){ t.remove(); }, ms || 3400);
   }
 
-  menuBtn.addEventListener('click', function(e){
-    e.stopPropagation();
-    menuPop.hidden = !menuPop.hidden;
-  });
-  document.addEventListener('click', function(){ menuPop.hidden = true; });
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
-    menuPop.hidden = true;
     if (!lightbox.hidden){ lightbox.hidden = true; return; }
     if (!stickerModal.hidden){ closeStickerModal(); return; }
     if (!clearModal.hidden) closeClearSheet();
@@ -656,7 +643,6 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   function closeClearSheet(){ clearModal.hidden = true; }
 
   clearBtn.addEventListener('click', function(){
-    menuPop.hidden = true;
     openClearSheet({
       title: '清空聊天记录',
       desc: '会给 ' + peerAccount().name + ' 发一条确认请求。对方同意后，两边的全部历史消息都会被删掉，删了找不回来。',
@@ -799,7 +785,16 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     return out;
   }
 
-  function openStickerModal(){ stickerModal.hidden = false; }
+  function openStickerModal(mode){
+    stickerMode = mode === 'manage' ? 'manage' : 'send';
+    const managing = stickerMode === 'manage';
+    stickerTitle.textContent = managing ? '管理表情包' : '表情包';
+    stickerManage.hidden = !managing;
+    imgSend.hidden = !managing;
+    stickerGrid.classList.toggle('editing', managing);
+    stickerModal.hidden = false;
+    renderStickerGrid();
+  }
   function closeStickerModal(){
     stickerModal.hidden = true;
     pendingImage = null;
@@ -808,10 +803,8 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     imgMeta.textContent = '';
     imgSend.disabled = true;
     fileInput.value = '';
-    stickerEditing = false;
+    stickerMode = 'send';
     stickerGrid.classList.remove('editing');
-    stickerEditBtn.classList.remove('active');
-    stickerEditBtn.textContent = '管理';
   }
 
   async function stageFile(file){
@@ -887,7 +880,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
       img.alt = '表情';
       cell.appendChild(img);
       cell.addEventListener('click', function(){
-        if (stickerEditing) return;
+        if (stickerMode === 'manage') return; // in管理 mode only the × does anything
         closeStickerModal();
         sendSticker(id);
       });
@@ -934,7 +927,8 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     });
   }
 
-  stickerBtn.addEventListener('click', openStickerModal);
+  stickerBtn.addEventListener('click', function(){ openStickerModal('send'); });
+  devBtn.addEventListener('click', function(){ openStickerModal('manage'); });
   imgCancel.addEventListener('click', closeStickerModal);
   dropZone.addEventListener('click', function(){ fileInput.click(); });
   fileInput.addEventListener('change', function(){ stageFile(fileInput.files[0]); });
@@ -948,12 +942,6 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     imgSend.disabled = true;
     fileInput.value = '';
     addSticker(dataUrl);
-  });
-  stickerEditBtn.addEventListener('click', function(){
-    stickerEditing = !stickerEditing;
-    stickerGrid.classList.toggle('editing', stickerEditing);
-    stickerEditBtn.classList.toggle('active', stickerEditing);
-    stickerEditBtn.textContent = stickerEditing ? '完成' : '管理';
   });
 
   ['dragenter', 'dragover'].forEach(function(ev){
@@ -976,7 +964,8 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     for (let i = 0; i < items.length; i++){
       if (items[i].type && items[i].type.indexOf('image/') === 0){
         e.preventDefault();
-        openStickerModal();
+        if (currentUser.id !== 'A') return;  // only the pack's keeper adds stickers
+        openStickerModal('manage');
         stageFile(items[i].getAsFile());
         return;
       }
