@@ -184,16 +184,17 @@
   #messages{ flex:1; overflow-y:auto; padding:18px 16px 10px; display:flex; flex-direction:column; gap:10px; background:var(--bg); }
   .day-divider{ align-self:center; font-size:.72rem; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); padding:3px 12px; border-radius:999px; margin:6px 0; }
   .sys-note{ align-self:center; font-size:.76rem; color:var(--text-dim); text-align:center; max-width:80%; }
-  .msg-row{ display:flex; align-items:flex-end; gap:8px; max-width:74%; }
-  .msg-row.own{ align-self:flex-end; flex-direction:row-reverse; }
-  .msg-row.other{ align-self:flex-start; }
+  /* Rows span the full width so the bubble's percentage cap resolves against a
+     definite width; a shrink-to-fit row makes that percentage behave as 'none',
+     which is what let long lines run off the left edge. */
+  .msg-row{ display:flex; align-items:flex-end; gap:8px; align-self:stretch; width:100%; }
+  .msg-row.own{ justify-content:flex-end; }
+  .msg-row.other{ justify-content:flex-start; }
   .avatar{ width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:700; flex:none; font-family:'JetBrains Mono', monospace; }
   .msg-row.other .avatar{ background:var(--accent-w); color:var(--accent-w-ink); }
   .msg-row.other.sender-A .avatar{ background:var(--accent-a); color:var(--accent-a-ink); }
-  /* inline-flex + fit-content: the bubble hugs its own text width instead of
-     inheriting the block-flex shrink algorithm, which is what was collapsing
-     CJK text (breakable at every character) down to one glyph per line. */
-  .msg-col{ display:inline-flex; flex-direction:column; gap:3px; width:fit-content; max-width:100%; min-width:0; }
+  .msg-col{ display:flex; flex-direction:column; gap:3px; min-width:0; max-width:74%; }
+  .msg-row.other .msg-col{ max-width:calc(74% - 34px); align-items:flex-start; } /* leaves room for the avatar */
   .msg-row.own .msg-col{ align-items:flex-end; }
   .bubble{ padding:10px 13px; border-radius:16px; font-size:.95rem; line-height:1.48; white-space:pre-wrap; overflow-wrap:break-word; }
   .msg-row.other .bubble{ background:var(--surface-2); color:var(--text); border-bottom-left-radius:5px; }
