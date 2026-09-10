@@ -215,9 +215,9 @@
   #send-btn:hover{ opacity:.88; }
   #send-btn:active{ transform:scale(.94); }
   #send-btn:disabled{ opacity:.4; cursor:default; }
-  #sticker-btn{ flex:none; width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; }
-  #sticker-btn:hover{ color:var(--text); }
-  #sticker-btn:focus-visible{ outline:2px solid var(--text-dim); outline-offset:2px; }
+  #sticker-btn, #photo-btn{ flex:none; width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  #sticker-btn:hover, #photo-btn:hover{ color:var(--text); }
+  #sticker-btn:focus-visible, #photo-btn:focus-visible{ outline:2px solid var(--text-dim); outline-offset:2px; }
 
   .conn-banner{ font-size:.78rem; text-align:center; color:var(--danger); padding:7px; background:color-mix(in srgb, var(--danger) 12%, var(--surface)); border-bottom:1px solid var(--border); display:none; }
   .conn-banner.show{ display:block; }
@@ -292,9 +292,28 @@
       <button id="send-btn" type="submit" aria-label="发送">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3.4 20.6l18.2-8.6-18.2-8.6 0 6.9 12.5 1.7-12.5 1.7z" fill="currentColor"/></svg>
       </button>
+      <button id="photo-btn" type="button" aria-label="发送图片">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 4h16a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 20 20H4a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 4 4zm.5 14h15l-5-6.5-3.6 4.6-2.4-2.9L4.5 18zM8.6 10.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z" fill="currentColor"/></svg>
+      </button>
     </form>
 
     <input type="file" id="file-input" accept="image/*" hidden>
+    <input type="file" id="photo-file" accept="image/*" hidden>
+
+    <div class="overlay" id="photo-modal" hidden>
+      <div class="sheet">
+        <h3>发送图片</h3>
+        <div class="drop-zone" id="photo-drop">把图片拖进来，或按 Ctrl+V 粘贴<br>点这里从文件夹里选</div>
+        <div class="img-preview" id="photo-preview" hidden>
+          <img id="photo-preview-el" alt="待发送的图片">
+          <span class="meta" id="photo-meta"></span>
+        </div>
+        <div class="sheet-actions">
+          <button type="button" id="photo-cancel">取消</button>
+          <button type="button" id="photo-send" class="primary" disabled>发送</button>
+        </div>
+      </div>
+    </div>
 
     <div class="overlay" id="sticker-modal" hidden>
       <div class="sheet">
@@ -368,6 +387,8 @@ const MSG_PATH = ['rooms', 'main', 'messages'];
 const PRESENCE_PATH = ['rooms', 'main', 'presence'];
 const CONTROL_PATH = ['rooms', 'main', 'control', 'clearRequest'];
 const STICKER_PATH = ['rooms', 'main', 'stickers'];
+const PHOTO_MAX_EDGE = 1400;     // longest side of a sent photo
+const PHOTO_TARGET_LEN = 520000; // keeps the encrypted doc under Firestore's 1 MiB cap
 const STICKER_MAX_EDGE = 360;    // stickers are small by nature
 const STICKER_TARGET_LEN = 260000;
 const HEARTBEAT_MS = 45000;      // one small write per open tab per 45s
@@ -397,6 +418,15 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   const clearBtn = document.getElementById('clear-btn');
   const devBtn = document.getElementById('dev-btn');
   const stickerBtn = document.getElementById('sticker-btn');
+  const photoBtn = document.getElementById('photo-btn');
+  const photoModal = document.getElementById('photo-modal');
+  const photoDrop = document.getElementById('photo-drop');
+  const photoFile = document.getElementById('photo-file');
+  const photoPreview = document.getElementById('photo-preview');
+  const photoPreviewEl = document.getElementById('photo-preview-el');
+  const photoMeta = document.getElementById('photo-meta');
+  const photoCancel = document.getElementById('photo-cancel');
+  const photoSend = document.getElementById('photo-send');
   const fileInput = document.getElementById('file-input');
   const stickerModal = document.getElementById('sticker-modal');
   const stickerGrid = document.getElementById('sticker-grid');
@@ -435,6 +465,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   let pendingImage = null;
   let stickerUnsub = null;
   let stickerMode = 'send';       // 'send' picks one, 'manage' adds/removes
+  let pendingPhoto = null;
   const stickerCache = new Map();  // sticker id -> decrypted data URL
   let stickerOrder = [];           // ids, oldest first
   let lastDocs = [];               // newest snapshot, kept so stickers can re-render
@@ -613,6 +644,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     if (!lightbox.hidden){ lightbox.hidden = true; return; }
+    if (!photoModal.hidden){ closePhotoModal(); return; }
     if (!stickerModal.hidden){ closeStickerModal(); return; }
     if (!clearModal.hidden) closeClearSheet();
   });
@@ -964,13 +996,107 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     for (let i = 0; i < items.length; i++){
       if (items[i].type && items[i].type.indexOf('image/') === 0){
         e.preventDefault();
-        if (currentUser.id !== 'A') return;  // only the pack's keeper adds stickers
-        openStickerModal('manage');
-        stageFile(items[i].getAsFile());
+        const file = items[i].getAsFile();
+        // pasting while the 管理 sheet is open means "add a sticker";
+        // anywhere else it means "send this picture"
+        if (!stickerModal.hidden && stickerMode === 'manage'){
+          stageFile(file);
+        } else {
+          openPhotoModal();
+          stagePhoto(file);
+        }
         return;
       }
     }
   });
+
+  // ---- photos: downscaled, encrypted, and carried by the message itself ----
+  async function shrinkPhoto(file){
+    const img = await fileToImage(file);
+    const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const g = canvas.getContext('2d');
+    g.fillStyle = '#ffffff';        // JPEG carries no alpha, so flatten first
+    g.fillRect(0, 0, w, h);
+    g.drawImage(img, 0, 0, w, h);
+    let quality = 0.82;
+    let out = canvas.toDataURL('image/jpeg', quality);
+    while (out.length > PHOTO_TARGET_LEN && quality > 0.34){
+      quality -= 0.12;
+      out = canvas.toDataURL('image/jpeg', quality);
+    }
+    if (out.length > 900000) throw new Error('still too large');
+    return out;
+  }
+
+  function openPhotoModal(){ photoModal.hidden = false; }
+  function closePhotoModal(){
+    photoModal.hidden = true;
+    pendingPhoto = null;
+    photoPreview.hidden = true;
+    photoPreviewEl.removeAttribute('src');
+    photoMeta.textContent = '';
+    photoSend.disabled = true;
+    photoFile.value = '';
+  }
+
+  async function stagePhoto(file){
+    if (!file || file.type.indexOf('image/') !== 0){ showToast('这不是图片文件'); return; }
+    photoMeta.textContent = '处理中…';
+    photoPreview.hidden = false;
+    try {
+      const dataUrl = await shrinkPhoto(file);
+      pendingPhoto = dataUrl;
+      photoPreviewEl.src = dataUrl;
+      photoMeta.textContent = '约 ' + Math.round(dataUrl.length / 1024) + ' KB';
+      photoSend.disabled = false;
+    } catch(e){
+      console.error('[qiaoqiaohua] photo prepare failed:', e);
+      photoPreview.hidden = true;
+      showToast('这张图处理不了，换一张试试');
+    }
+  }
+
+  async function sendPhoto(dataUrl){
+    if (!cryptoKey || !currentUser) return;
+    try {
+      const enc = await encryptText(dataUrl);
+      await addDoc(collection(fs, ...MSG_PATH), {
+        senderUid: currentUser.uid, kind: 'image', iv: enc.iv, ct: enc.ct, ts: Date.now()
+      });
+    } catch(e){
+      console.error('[qiaoqiaohua] photo send failed:', e);
+      showToast('图片没发出去');
+      connBanner.classList.add('show');
+    }
+  }
+
+  photoBtn.addEventListener('click', openPhotoModal);
+  photoCancel.addEventListener('click', closePhotoModal);
+  photoDrop.addEventListener('click', function(){ photoFile.click(); });
+  photoFile.addEventListener('change', function(){ stagePhoto(photoFile.files[0]); });
+  photoSend.addEventListener('click', function(){
+    if (!pendingPhoto) return;
+    const dataUrl = pendingPhoto;
+    closePhotoModal();
+    sendPhoto(dataUrl);
+  });
+
+  ['dragenter', 'dragover'].forEach(function(ev){
+    photoDrop.addEventListener(ev, function(e){ e.preventDefault(); photoDrop.classList.add('dragover'); });
+    photoModal.addEventListener(ev, function(e){ e.preventDefault(); });
+  });
+  ['dragleave', 'drop'].forEach(function(ev){
+    photoDrop.addEventListener(ev, function(e){ e.preventDefault(); photoDrop.classList.remove('dragover'); });
+  });
+  photoDrop.addEventListener('drop', function(e){
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    stagePhoto(f);
+  });
+  photoModal.addEventListener('drop', function(e){ e.preventDefault(); });
 
   // ---- unread badge: a red dot on the tab icon while you are looking elsewhere ----
   const faviconLink = document.querySelector('link[rel="icon"]');
@@ -1050,6 +1176,7 @@ const ONLINE_WINDOW_MS = 120000; // peer reads as online if seen within 2 min
     lastDocs = [];
     closeClearSheet();
     closeStickerModal();
+    closePhotoModal();
     lightbox.hidden = true;
     handledRequestId = null;
     notifiedRequestId = null;
