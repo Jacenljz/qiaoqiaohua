@@ -196,7 +196,10 @@
   .msg-col{ display:flex; flex-direction:column; gap:3px; min-width:0; max-width:74%; }
   .msg-row.other .msg-col{ max-width:calc(74% - 34px); align-items:flex-start; } /* leaves room for the avatar */
   .msg-row.own .msg-col{ align-items:flex-end; }
-  .bubble{ padding:10px 13px; border-radius:16px; font-size:.95rem; line-height:1.48; white-space:pre-wrap; overflow-wrap:break-word; }
+  /* 'anywhere' rather than 'break-word': only the former shrinks the element's
+     min-content width, so a long unbroken string (a token, a URL) lets the
+     bubble narrow and wrap instead of running past the edge of the screen. */
+  .bubble{ padding:10px 13px; border-radius:16px; font-size:.95rem; line-height:1.48; white-space:pre-wrap; overflow-wrap:anywhere; }
   .msg-row.other .bubble{ background:var(--surface-2); color:var(--text); border-bottom-left-radius:5px; }
   .msg-row.own .bubble{ border-bottom-right-radius:5px; }
   .msg-row.own.sender-W .bubble{ background:var(--accent-w); color:var(--accent-w-ink); }
